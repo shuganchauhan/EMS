@@ -1,11 +1,14 @@
 import React, { useContext, useState, useEffect } from 'react'
 import Login from './components/Auth/Login'
+import Signup from './components/Auth/Signup'
 import EmployeeDashboard from './components/Dashboard/EmployeeDashboard'
 import AdminDashboard from './components/Dashboard/AdminDashboard'
 import { AuthContext } from './context/AuthContext'
 import { getLocalStorage } from './utils/localStorage'
 
 const App = () => {
+
+  const [page, setPage] = useState('login') // 'login' | 'signup'
 
   const [user, setUser] = useState(() => {
     const loggedInUser = localStorage.getItem('loggedInUser')
@@ -15,7 +18,7 @@ const App = () => {
     }
     return null
   })
-  const [userData] = useContext(AuthContext)
+  const [userData, setUserData] = useContext(AuthContext)
 
   const loggedInUserData = React.useMemo(() => {
     if (user === 'employee' && userData) {
@@ -39,11 +42,38 @@ const App = () => {
       if (employee) {
         setUser('employee')
         localStorage.setItem('loggedInUser', JSON.stringify({ role: 'employee', data: employee }))
-      }
-      else {
+      } else {
         alert("Invalid Credentials")
       }
     }
+  }
+
+  const handleSignup = (firstName, email, password) => {
+    // Check if email is already registered
+    const existingEmployees = JSON.parse(localStorage.getItem('employees')) || []
+    const alreadyExists = existingEmployees.find((e) => e.email === email)
+    if (alreadyExists) {
+      alert('An account with this email already exists. Please log in.')
+      return
+    }
+
+    // Create new employee and save to localStorage
+    const newEmployee = {
+      id: existingEmployees.length + 1,
+      firstName,
+      email,
+      password,
+      taskCounts: { active: 0, newTask: 0, completed: 0, failed: 0 },
+      tasks: []
+    }
+    const updatedEmployees = [...existingEmployees, newEmployee]
+    localStorage.setItem('employees', JSON.stringify(updatedEmployees))
+
+    // Update context state so the new user can log in immediately
+    setUserData(updatedEmployees)
+
+    alert('Account created successfully! Please log in.')
+    setPage('login')
   }
 
   useEffect(() => {
@@ -55,11 +85,10 @@ const App = () => {
     }
   }, [loggedInUserData])
 
-
-
   return (
     <>
-      {!user ? <Login handleLogin={handleLogin} /> : ''}
+      {!user && page === 'login' && <Login handleLogin={handleLogin} switchToSignup={() => setPage('signup')} />}
+      {!user && page === 'signup' && <Signup handleSignup={handleSignup} switchToLogin={() => setPage('login')} />}
       {user == 'admin' ? <AdminDashboard changeUser={setUser} /> : (user == 'employee' && loggedInUserData ? <EmployeeDashboard changeUser={setUser} data={loggedInUserData} /> : null)}
     </>
   )
